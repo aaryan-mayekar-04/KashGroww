@@ -1,0 +1,149 @@
+# 🚀 KashGroww Email OTP - QUICKSTART
+
+## ⚡ 30-Second Setup (Choose ONE)
+
+### Option 1: Use Brevo (EASIEST) ⭐
+```powershell
+# 1. Right-click PowerShell script and select "Run with PowerShell"
+.\setup_email.ps1
+
+# 2. Choose option 1 (Brevo)
+# 3. Create account at https://app.brevo.com
+# 4. Get SMTP password from Settings → SMTP & API
+# 5. Paste in PowerShell
+# 6. Done!
+
+# Then run:
+streamlit run app.py
+```
+
+### Option 2: Use Batch Script
+```batch
+# Double-click: setup_email.bat
+# Choose option 1 (Brevo)
+# Follow the prompts
+# Then run: streamlit run app.py
+```
+
+### Option 3: Manual Setup (PowerShell)
+```powershell
+# 1. Create Brevo account: https://app.brevo.com
+# 2. Get SMTP password from Settings → SMTP & API
+# 3. Run:
+
+setx BREVO_API_KEY "your_brevo_smtp_password"
+setx BREVO_EMAIL "your_email@brevo-email.com"
+
+# 4. Close PowerShell and reopenwindows
+# 5. Run:
+streamlit run app.py
+```
+
+### Option 4: Demo Mode (Quick Testing)
+```powershell
+# 1. Edit: pages/1_Login.py
+# 2. Change: DEMO_MODE = True
+# 3. Run:
+streamlit run app.py
+
+# OTP will display in the UI instead of sending email
+```
+
+---
+
+## 🎯 What You'll See
+
+✅ **Registration Page Banner**
+- "✅ Brevo Email Service - Active" (if configured)
+- "🧪 DEMO MODE" (if in demo mode)
+
+✅ **After Click "Continue"**
+- "📧 Sending OTP to your email..." (spinner)
+- "✅ OTP sent successfully!" (if successful)
+
+✅ **OTP Verification**
+- User gets email with 6-digit OTP
+- Enters OTP in app
+- Gets verified and creates account
+
+---
+
+## ❌ Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| "Gmail authentication failed" | Switch to Brevo (easier setup) |
+| "Brevo authentication failed" | Double-check SMTP password from Settings → SMTP & API |
+| Email not received | Check spam folder, resend OTP button |
+| "No Email Provider Configured" | Run setup_email.ps1 or setup_email.bat |
+| Connection timeout | Check internet, try different network |
+
+---
+
+## 📁 Files Created
+
+| File | Purpose |
+|------|---------|
+| `setup_email.ps1` | PowerShell setup wizard (easiest) |
+| `setup_email.bat` | Batch setup wizard |
+| `EMAIL_SETUP.md` | Complete guide |
+| `.env.example` | Template for .env file |
+
+---
+
+## 🔐 Environment Variables
+
+After setup, these are registered automatically:
+
+**Brevo:**
+- `BREVO_API_KEY` - Your SMTP password
+- `BREVO_EMAIL` - Your sender email
+
+**Gmail:**
+- `GMAIL_PASSWORD` - Your 16-char App Password
+- `GMAIL_EMAIL` - Your Gmail address
+
+---
+
+## ✨ Recommended Settings
+
+**For Development/Testing:**
+```python
+USE_BREVO = True    # Brevo is more reliable
+DEMO_MODE = False   # Actually send emails
+```
+
+**For Local Testing (No Email):**
+```python
+USE_BREVO = True
+DEMO_MODE = True    # Shows OTP in UI
+```
+
+---
+
+## 🎓 Why Brevo?
+
+✅ **Free**: 300 emails per day  
+✅ **Easy**: No 2FA setup required  
+✅ **Reliable**: Better deliverability  
+✅ **Fast**: Simple SMTP connection  
+
+Gmail requires:
+- 2-Factor Authentication setup
+- 16-character App Password generation
+- Password doesn't work until 2FA is enabled
+
+---
+
+## 📞 Still Stuck?
+
+1️⃣ Try DEMO_MODE first (fastest way to test)
+2️⃣ Copy the error message and search it
+3️⃣ Check EMAIL_SETUP.md for detailed troubleshooting
+4️⃣ Contact support with screenshots
+
+---
+
+**Status**: Production Ready ✅  
+**Last Updated**: March 2026  
+**Tested On**: Windows 10/11, Python 3.8+

@@ -1,0 +1,71 @@
+# ✅ REAL EMAIL OTP - QUICK START (Copy & Paste)
+
+## 📋 What to Do
+
+### Step 1: Check Current Status
+Open PowerShell and run:
+```powershell
+.\check_email_setup.ps1
+```
+This shows if your credentials are configured.
+
+### Step 2: Set Up Brevo (Recommended - FREE)
+A. Go to https://app.brevo.com and create account
+B. Login and go to Settings → SMTP & API
+C. Copy your SMTP Password
+D. Run this in PowerShell:
+
+```powershell
+[Environment]::SetEnvironmentVariable("BREVO_API_KEY", "PASTE_YOUR_SMTP_PASSWORD_HERE", "User")
+[Environment]::SetEnvironmentVariable("BREVO_EMAIL", "noreply@kashgroww.com", "User")
+```
+
+### Step 3: Restart & Test
+```powershell
+# Close this PowerShell completely
+# Open a NEW PowerShell window
+# Run:
+streamlit run app.py
+```
+
+### Step 4: Register & Test OTP
+1. Go to "Create account" tab
+2. Enter your name, YOUR REAL EMAIL, phone number
+3. Click "Continue →"
+4. 👉 **Check your email for OTP**
+5. Enter OTP in the app
+6. Boom! 🎉 Real email delivery working!
+
+---
+
+## 🛠️ Troubleshooting
+
+**Still seeing "Demo Mode"?**
+- ✅ Run: `.\check_email_setup.ps1` to verify
+- ✅ Make sure you restarted PowerShell (very important!)
+- ✅ Copy the full SMTP password with no spaces
+
+**Email not arriving?**
+- ✅ Check spam/promotions folder
+- ✅ Verify email address is correct
+- ✅ Use "Resend OTP" button in app
+
+**Everything looks right but still errors?**
+- ✅ Close Streamlit (Ctrl+C in terminal)
+- ✅ Run: `.\check_email_setup.ps1` again
+- ✅ Restart Streamlit: `streamlit run app.py`
+
+---
+
+## 📝 Files in This Folder
+
+| File | What it does |
+|------|-------------|
+| `INSTANT_SETUP.txt` | Complete 3-minute setup guide |
+| `check_email_setup.ps1` | Verifies your credentials are configured |
+| `setup_email.ps1` | Interactive wizard (also works) |
+| `EMAIL_SETUP.md` | Detailed guide with all options |
+
+---
+
+**Done? Run:** `streamlit run app.py` 🚀

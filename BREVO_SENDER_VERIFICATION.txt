@@ -1,0 +1,102 @@
+# ✅ BREVO SENDER EMAIL VERIFICATION
+
+## Problem
+Email shows "Sent!", but recipient never receives it.
+
+## Root Cause
+**The "From" email address MUST be verified in Brevo**
+
+---
+
+## Solution: Verify Your Sender Email in Brevo
+
+### Step 1: Login to Brevo
+1. Go to: https://app.brevo.com
+2. Click your profile (top left)
+3. Go to **Settings**
+
+### Step 2: Find Sender Emails
+1. Click **Senders** (in left sidebar)
+2. You should see:
+   - `a69748001@smtp-brevo.com` (might have a ✓ or ✗)
+
+### Step 3: Check if Verified
+- **✓ Green checkmark** = Verified ✅ (should work)
+- **✗ Red X or warning** = Not verified (needs action)
+
+### Step 4: If Not Verified
+If showing warning/not verified:
+
+**Option A: Use Your Verified Sender (Recommended)**
+1. In Senders list, look for ANY email with a **✓**
+2. If you find one (like `a69748001@brevo.com`), use THAT
+3. Update [pages/1_Login.py](pages/1_Login.py#L31):
+   ```python
+   'SENDER_EMAIL': 'verified_email@here.com',  # The one with ✓
+   ```
+
+**Option B: Add Email as Verified**
+1. Click **Add a sender**
+2. Enter domain or email you want to send from
+3. Brevo will send verification link
+4. Click verification link
+5. Wait a few minutes for Brevo to confirm
+6. Use that email in KashGroww config
+
+---
+
+## Quick Check: What Sender is Currently Used?
+
+**In [pages/1_Login.py](pages/1_Login.py) line 31:**
+```python
+'SENDER_EMAIL': 'a69748001@smtp-brevo.com',
+```
+
+Go check if `a69748001@smtp-brevo.com` has a ✓ in your Brevo Senders list.
+
+---
+
+## What's the Difference?
+
+```
+SMTP Login:     a69748001@smtp-brevo.com  (Account credentials)
+Sender Email:   a69748001@smtp-brevo.com  (From: address - MUST be verified!)
+```
+
+They can be different! You authenticate with login, but you send FROM the verified sender email.
+
+---
+
+## ⚠️ Common Issue
+
+Many users use `a69748001@smtp-brevo.com` as login, but it's NOT verified as a sender.
+
+**Solution**: Create a custom sender in Brevo Senders section and use THAT email.
+
+---
+
+## Steps to Fix NOW:
+
+1. **Login to Brevo**: https://app.brevo.com
+2. **Go to Senders** (Settings → Senders)
+3. **Check if ANY email has a ✓**
+4. **If YES**: Update [pages/1_Login.py](pages/1_Login.py#L31) with that email
+5. **If NO**: Click "Add a sender" and create one
+6. **Wait for verification** (usually 5-10 minutes)
+7. **Update [pages/1_Login.py](pages/1_Login.py#L31)**:
+   ```python
+   'SENDER_EMAIL': 'your_verified_sender@here.com',
+   ```
+8. **Restart Streamlit**: `py -m streamlit run app.py`
+9. **Try sending OTP again**
+
+---
+
+## Need Help?
+
+Tell me:
+1. What **sender emails** do you see in Brevo Senders section?
+2. Which one has a **✓ checkmark**?
+3. I'll update the code for you right away!
+
+Or send a screenshot of your Brevo Senders page and I'll tell you exactly which one to use.

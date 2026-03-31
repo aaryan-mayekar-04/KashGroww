@@ -1,0 +1,76 @@
+# 🚀 INSTANT BREVO SETUP - 3 MINUTES
+
+## Step 1: Create Free Brevo Account (1 minute)
+1. Go to: https://app.brevo.com/signup
+2. Sign up with your email
+3. Verify your email
+4. Login
+
+## Step 2: Get SMTP Password (1 minute)
+1. After login, click your profile (top left)
+2. Go to **Settings** (gear icon)
+3. Select **SMTP & API** from left sidebar
+4. Copy your **SMTP Password** (the longer one, not Login)
+
+## Step 3: Configure KashGroww (1 minute)
+
+### Option A: Quick PowerShell Command (Copy-Paste)
+```powershell
+# Replace YOUR_SMTP_PASSWORD with the password from Brevo
+# Keep the quotes and backticks!
+
+$brevoPassword = 'YOUR_SMTP_PASSWORD'
+$brevoEmail = 'noreply@kashgroww.com'
+
+[Environment]::SetEnvironmentVariable("BREVO_API_KEY", $brevoPassword, "User")
+[Environment]::SetEnvironmentVariable("BREVO_EMAIL", $brevoEmail, "User")
+
+Write-Host "✅ Environment variables set!"
+Write-Host "Now close this PowerShell and open a NEW one"
+Write-Host "Run: streamlit run app.py"
+```
+
+### Option B: Manual Steps
+1. Open PowerShell (as Administrator)
+2. Run these two commands:
+```powershell
+setx BREVO_API_KEY "paste_your_smtp_password_here"
+setx BREVO_EMAIL "noreply@kashgroww.com"
+```
+3. **Close PowerShell completely** (important!)
+4. Open a **NEW PowerShell** window
+5. Navigate to your project folder
+6. Run: `streamlit run app.py`
+
+## Step 4: Test It! ✅
+1. Go to "Create account" tab
+2. Enter a name, YOUR REAL EMAIL, and phone
+3. Click Continue
+4. Check your email inbox for OTP (check spam too!)
+5. Enter the OTP
+6. Complete registration
+
+## ⚠️ Common Issues
+
+**"Demo Mode still showing"**
+- You forgot to close PowerShell completely
+- Open a NEW PowerShell window
+- Verify with: `$env:BREVO_API_KEY` (should show your password)
+
+**"Email not received"**
+- Check spam/promotions folder
+- Check that email is spelled correctly in the form
+- Try the "Resend OTP" button
+- Wait a few seconds
+
+**"Authentication failed"**
+- Double-check you copied the SMTP PASSWORD (not username)
+- Make sure there are no spaces at the beginning or end
+- Login to Brevo and copy again
+
+## 🎉 THAT'S IT!
+Your app will now send real OTPs via email!
+
+---
+
+**Need Gmail instead?** Ask me and I'll set that up (it's 5 minutes with 2FA setup).
