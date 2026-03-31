@@ -4,6 +4,7 @@ import streamlit as st
 import plotly.express as px
 import pandas as pd
 
+
 # ── PATH SETUP ───────────────────────────────────────────────────────────────
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
@@ -20,7 +21,7 @@ if not st.session_state.get("logged_in"):
 
 # ── HEADER ───────────────────────────────────────────────────────────────────
 st.title("📁 My Investment History")
-st.caption("All your saved investment plans in one place.")
+st.header("All your Saved Investment Plans in ne place.")
 
 # ── FETCH DATA ───────────────────────────────────────────────────────────────
 history = get_history(st.session_state["user_id"])

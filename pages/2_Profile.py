@@ -19,7 +19,7 @@ if not st.session_state.get("logged_in"):
 
 # ── HEADER ───────────────────────────────────────────────────────────────────
 st.title("🧑‍💼 Investor Profile")
-st.caption("Used to predict your risk level and build a personalised investment plan.")
+st.subheader("Used to Predict Risk Level and Build a Personalised Investment Plan.")
 
 # ── FORM COLUMNS ─────────────────────────────────────────────────────────────
 col1, col2 = st.columns(2)
@@ -55,9 +55,10 @@ with col2:
 
 # ── ASSET PREFERENCES ────────────────────────────────────────────────────────
 st.divider()
-st.subheader("🏦 Asset preferences")
-st.caption(
-    "Select the asset types you are comfortable investing in. "
+st.header("🏦 Asset Preferences")
+st.subheader(
+    "Select the asset types you are comfortable investing in. ")
+st.info(
     "Your plan will only allocate funds to your chosen assets."
 )
 
@@ -70,13 +71,15 @@ ASSET_OPTIONS = [
 ]
 
 # Pre-fill from session if returning to edit profile
+st.subheader("📊 Choose Your Preferred Asset Types")
+
 default_assets = (st.session_state.get("profile") or {}).get("preferred_assets", ASSET_OPTIONS)
 
 preferred_assets = st.multiselect(
-    "Choose your preferred asset types (select at least one)",
+    "Select at least one asset type",
     options=ASSET_OPTIONS,
     default=default_assets,
-    help="Only the assets you select here will be included in your investment plan.",
+    help="Only the assets you select here will be included in your investment plan."
 )
 
 # Visual indicator of selected assets
@@ -96,7 +99,7 @@ else:
 
 # ── PROFILE SUMMARY ───────────────────────────────────────────────────────────
 st.divider()
-st.subheader("Your profile summary")
+st.subheader("Your Profile Summary")
 
 m1, m2, m3, m4, m5 = st.columns(5)
 m1.metric("Age",        age)
@@ -112,7 +115,8 @@ if preferred_assets:
     )
 
 # ── SUBMIT ────────────────────────────────────────────────────────────────────
-if st.button("Generate my investment plan →", type="primary", use_container_width=True):
+st.subheader("Submit Your Profile")
+if st.button("Generate my Investment Plan →", type="primary", use_container_width=True):
 
     # Validate asset selection
     if not preferred_assets:

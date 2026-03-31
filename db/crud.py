@@ -1,135 +1,315 @@
-import bcrypt, json
-from db.models import get_session, User, Profile, Recommendation
+"""
+db/crud.py
+==========
+All database read/write operations for KashGroww.
+Every function opens its own connection and closes it when done.
+"""
 
-# ════════ USER FUNCTIONS ════════════════════════════════════════
-def create_user(name, email, phone, username, plain_password):
-    s = get_session()
+import json
+import bcrypt
+from datetime import datetime
+from db.models import get_connection
+
+
+# ── HELPERS ───────────────────────────────────────────────────────────────────
+
+def _hash_password(plain: str) -> str:
+    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
+
+
+def verify_password(plain: str, hashed: str) -> bool:
     try:
-        existing = s.query(User).filter_by(username=username).first()
-        if existing:
-            return existing   # 👈 return instead of error
+        return bcrypt.checkpw(plain.encode(), hashed.encode())
+    except Exception:
+        return False
 
-        hashed = hash_password(plain_password)
-        u = User(name=name, email=email, phone=phone,
-                 username=username, password=hashed)
 
-        s.add(u)
-        s.commit()
-        s.refresh(u)
-        return u
+# ── USERS ─────────────────────────────────────────────────────────────────────
 
-    except Exception as e:
-        s.rollback()
-        raise e
+def create_user(name: str, email: str, phone: str,
+                username: str, plain_password: str):
+    """Insert a new user. Returns the new user's id."""
+    conn   = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            INSERT INTO users (name, email, phone, username, password)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (name, email, phone, username, _hash_password(plain_password)))
+        conn.commit()
+        return cursor.lastrowid
     finally:
-        s.close()
+        cursor.close()
+        conn.close()
 
-def get_user(username):
-    # Fetch user by username. Returns User object or None.
-    s = get_session()
-    u = s.query(User).filter_by(username=username).first()
-    s.close()
-    return u
 
-def email_exists(email):
-    # Returns True if this email is already registered
-    s = get_session()
-    found = s.query(User).filter_by(email=email).first() is not None
-    s.close()
-    return found
-
-def verify_password(plain, hashed):
-    # Returns True if plain password matches stored hash
-    return bcrypt.checkpw(plain.encode('utf-8'), hashed.encode('utf-8'))
-
-def hash_password(plain):
-    # Hash a plain password using bcrypt
-    return bcrypt.hashpw(plain.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-
-def get_user_by_email(email):
-    # Fetch user by email. Returns User object or None.
-    s = get_session()
-    u = s.query(User).filter_by(email=email).first()
-    s.close()
-    return u
-
-def reset_password(email, new_password):
-    # Reset password for user with given email
-    s = get_session()
+def get_user(username: str):
+    """Fetch a user row by username. Returns a SimpleNamespace or None."""
+    conn   = get_connection()
+    cursor = conn.cursor(dictionary=True)
     try:
-        user = s.query(User).filter_by(email=email).first()
-        if not user:
-            return False, "Email not found"
-        
-        hashed = hash_password(new_password)
-        user.password = hashed
-        s.commit()
-        return True, "Password reset successfully"
-    
-    except Exception as e:
-        s.rollback()
-        return False, f"Error: {str(e)}"
-    finally:
-        s.close()
-
-# ════════ PROFILE FUNCTIONS ═════════════════════════════════════
-
-def save_profile(user_id, age, gender, no_dependents,
-                  income, invest_amount, risk_level, horizon):
-    # Upsert: update if profile exists, insert if new
-    s = get_session()
-    try:
-        p = s.query(Profile).filter_by(user_id=user_id).first()
-        if p:
-            p.age = age; p.gender = gender; p.no_dependents = no_dependents
-            p.income = income; p.invest_amount = invest_amount
-            p.risk_level = risk_level; p.horizon = horizon
-        else:
-            p = Profile(user_id=user_id, age=age, gender=gender,
-                        no_dependents=no_dependents, income=income,
-                        invest_amount=invest_amount,
-                        risk_level=risk_level, horizon=horizon)
-            s.add(p)
-        s.commit()
-    except Exception as e:
-        s.rollback()
-        raise e
-    finally:
-        s.close()
-
-# ════════ RECOMMENDATION FUNCTIONS ══════════════════════════════
-
-def save_recommendation(user_id, risk_level, plan, blended_return, total_invested):
-    # Save a plan as JSON strings in MySQL
-    s = get_session()
-    try:
-        rec = Recommendation(
-            user_id      = user_id,
-            risk_level   = risk_level,
-            plan_json    = json.dumps(plan),
-            returns_json = json.dumps({
-                'blended_return': blended_return,
-                'total_invested': total_invested,
-            })
+        cursor.execute(
+            "SELECT * FROM users WHERE username = %s", (username,)
         )
-        s.add(rec)
-        s.commit()
-    except Exception as e:
-        s.rollback()
-        raise e
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return _dict_to_obj(row)
     finally:
-        s.close()
+        cursor.close()
+        conn.close()
 
-def get_history(user_id):
-    # Fetch all saved plans for a user. Returns list of dicts.
-    s = get_session()
-    recs = s.query(Recommendation).filter_by(user_id=user_id)             .order_by(Recommendation.created_at).all()
-    result = [{
-        'id':         r.id,
-        'date':       r.created_at,
-        'risk_level': r.risk_level,
-        'plan':       json.loads(r.plan_json),
-        'returns':    json.loads(r.returns_json),
-    } for r in recs]
-    s.close()
+
+def get_user_by_email(email: str):
+    """Fetch a user row by email. Returns a SimpleNamespace or None."""
+    conn   = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            "SELECT * FROM users WHERE email = %s", (email,)
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return _dict_to_obj(row)
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def email_exists(email: str) -> bool:
+    """Return True if the email is already registered."""
+    conn   = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "SELECT COUNT(*) FROM users WHERE email = %s", (email,)
+        )
+        return cursor.fetchone()[0] > 0
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def reset_password(email: str, new_plain_password: str):
+    """Update the password for the given email. Returns (True, msg) or (False, msg)."""
+    conn   = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "UPDATE users SET password = %s WHERE email = %s",
+            (_hash_password(new_plain_password), email)
+        )
+        conn.commit()
+        if cursor.rowcount == 0:
+            return False, "Email not found."
+        return True, "Password reset successfully."
+    except Exception as e:
+        return False, str(e)
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# ── PROFILES ──────────────────────────────────────────────────────────────────
+
+def save_profile(user_id: int, age: int, gender: str, no_dependents: int,
+                 income: int, invest_amount: int, risk_level: str,
+                 horizon: str, preferred_assets: list = None):
+    """
+    Insert or update the investor profile for user_id.
+    preferred_assets is stored as a JSON string.
+    """
+    assets_json = json.dumps(preferred_assets) if preferred_assets else None
+    conn   = get_connection()
+    cursor = conn.cursor()
+    try:
+        # Check if profile already exists
+        cursor.execute(
+            "SELECT id FROM profiles WHERE user_id = %s", (user_id,)
+        )
+        existing = cursor.fetchone()
+
+        if existing:
+            cursor.execute("""
+                UPDATE profiles
+                SET age=%s, gender=%s, no_dependents=%s, income=%s,
+                    invest_amount=%s, risk_level=%s, horizon=%s,
+                    preferred_assets=%s
+                WHERE user_id=%s
+            """, (age, gender, no_dependents, income, invest_amount,
+                  risk_level, horizon, assets_json, user_id))
+        else:
+            cursor.execute("""
+                INSERT INTO profiles
+                    (user_id, age, gender, no_dependents, income,
+                     invest_amount, risk_level, horizon, preferred_assets)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (user_id, age, gender, no_dependents, income,
+                  invest_amount, risk_level, horizon, assets_json))
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def get_profile(user_id: int):
+    """Return the profile dict for user_id, or None."""
+    conn   = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            "SELECT * FROM profiles WHERE user_id = %s", (user_id,)
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        # Deserialise preferred_assets JSON
+        if row.get("preferred_assets"):
+            try:
+                row["preferred_assets"] = json.loads(row["preferred_assets"])
+            except (json.JSONDecodeError, TypeError):
+                row["preferred_assets"] = []
+        return row
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# ── RECOMMENDATIONS ───────────────────────────────────────────────────────────
+
+def save_recommendation(user_id: int, risk_level: str, plan: list,
+                         blended_return: float, total_invested: float):
+    """
+    Save a generated plan to both recommendations and history tables.
+    plan is stored as JSON.
+    """
+    plan_json = json.dumps(plan)
+    conn      = get_connection()
+    cursor    = conn.cursor()
+    try:
+        # Save to recommendations
+        cursor.execute("""
+            INSERT INTO recommendations
+                (user_id, risk_level, plan_json, blended_return, total_invested)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (user_id, risk_level, plan_json, blended_return, total_invested))
+
+        # Also save to history
+        cursor.execute("""
+            INSERT INTO history
+                (user_id, risk_level, plan_json, blended_return, total_invested)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (user_id, risk_level, plan_json, blended_return, total_invested))
+
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# ── HISTORY ───────────────────────────────────────────────────────────────────
+
+def get_history(user_id: int) -> list:
+    """
+    Return all saved plans for user_id as a list of dicts, newest first.
+    Each dict has: date, risk_level, returns{blended_return, total_invested}, plan
+    """
+    conn   = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT risk_level, plan_json, blended_return,
+                   total_invested, saved_at
+            FROM history
+            WHERE user_id = %s
+            ORDER BY saved_at DESC
+        """, (user_id,))
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+    result = []
+    for row in rows:
+        try:
+            plan = json.loads(row["plan_json"]) if row["plan_json"] else []
+        except (json.JSONDecodeError, TypeError):
+            plan = []
+
+        result.append({
+            "date":       row["saved_at"],
+            "risk_level": row["risk_level"],
+            "returns": {
+                "blended_return": row["blended_return"] or 0.0,
+                "total_invested": row["total_invested"] or 0,
+            },
+            "plan": plan,
+        })
     return result
+
+
+# ── ASSETS ────────────────────────────────────────────────────────────────────
+
+def get_assets(asset_type: str = None) -> list:
+    """
+    Return assets from the assets table.
+    Optionally filter by asset_type.
+    """
+    conn   = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        if asset_type:
+            cursor.execute(
+                "SELECT * FROM assets WHERE asset_type = %s", (asset_type,)
+            )
+        else:
+            cursor.execute("SELECT * FROM assets")
+        return cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def upsert_asset(asset_type: str, asset_name: str, annual_return: float,
+                 volatility: float, sharpe_ratio: float, beta: float,
+                 rsi: float, ma_20: float, ma_50: float):
+    """Insert or update an asset record by asset_name."""
+    conn   = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "SELECT id FROM assets WHERE asset_name = %s", (asset_name,)
+        )
+        existing = cursor.fetchone()
+        if existing:
+            cursor.execute("""
+                UPDATE assets
+                SET asset_type=%s, annual_return=%s, volatility=%s,
+                    sharpe_ratio=%s, beta=%s, rsi=%s, ma_20=%s, ma_50=%s
+                WHERE asset_name=%s
+            """, (asset_type, annual_return, volatility, sharpe_ratio,
+                  beta, rsi, ma_20, ma_50, asset_name))
+        else:
+            cursor.execute("""
+                INSERT INTO assets
+                    (asset_type, asset_name, annual_return, volatility,
+                     sharpe_ratio, beta, rsi, ma_20, ma_50)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (asset_type, asset_name, annual_return, volatility,
+                  sharpe_ratio, beta, rsi, ma_20, ma_50))
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# ── INTERNAL HELPER ───────────────────────────────────────────────────────────
+
+class _Obj:
+    """Converts a dict to a dot-accessible object (like SQLAlchemy row)."""
+    def __init__(self, d: dict):
+        self.__dict__.update(d)
+
+def _dict_to_obj(d: dict) -> _Obj:
+    return _Obj(d)

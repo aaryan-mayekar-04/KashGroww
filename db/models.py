@@ -1,64 +1,131 @@
-from sqlalchemy import (
-    create_engine, Column, Integer, String,
-    Float, DateTime, Text, BigInteger, ForeignKey
-)
-from sqlalchemy.orm import declarative_base, sessionmaker
-from datetime import datetime
+"""
+db/models.py
+============
+MySQL connection + table creation for KashGroww.
 
-# ── CONNECTION FUNCTION ─────────────────────────────────────────
-def get_db_url():
-    # When running in Streamlit → reads from secrets.toml
-    # When running in Jupyter   → uses the hardcoded local URL
+Add your credentials to .streamlit/secrets.toml:
+
+[mysql]
+host     = "localhost"
+port     = 3306
+user     = "root"
+password = "your_mysql_password"
+database = "kashgroww"
+"""
+
+import json
+import streamlit as st
+import mysql.connector
+from mysql.connector import Error
+
+
+# ── CONNECTION ────────────────────────────────────────────────────────────────
+
+def get_connection():
+    """Return a fresh MySQL connection using credentials from secrets.toml."""
     try:
-        import streamlit as st
-        c = st.secrets["mysql"]
-        return f"mysql+pymysql://{c['user']}:{c['password']}@{c['host']}:{c['port']}/{c['database']}"
-    except:
-        return "mysql+pymysql://root:@localhost:3306/kashgroww_db"
+        cfg = st.secrets["mysql"]
+        conn = mysql.connector.connect(
+            host     = cfg.get("host",     "localhost"),
+            port     = int(cfg.get("port", 3306)),
+            user     = cfg["user"],
+            password = cfg["password"],
+            database = cfg["database"],
+        )
+        return conn
+    except KeyError:
+        raise RuntimeError(
+            "MySQL credentials missing from .streamlit/secrets.toml. "
+            "Add a [mysql] section with host, port, user, password, database."
+        )
+    except Error as e:
+        raise RuntimeError(f"MySQL connection failed: {e}")
 
-# pool_pre_ping=True → auto-reconnect if MySQL closes idle connection
-ENGINE       = create_engine(get_db_url(), pool_pre_ping=True, pool_recycle=3600)
-Base         = declarative_base()
-SessionLocal = sessionmaker(bind=ENGINE)
 
-# ── TABLE DEFINITIONS ───────────────────────────────────────────
-class User(Base):
-    __tablename__ = 'users'
-    id         = Column(Integer, primary_key=True, autoincrement=True)
-    name       = Column(String(100), nullable=False)
-    email      = Column(String(150), unique=True, nullable=False)
-    phone      = Column(String(20))
-    username   = Column(String(80), unique=True, nullable=False)
-    password   = Column(String(200), nullable=False)
-    created_at = Column(DateTime, default=datetime.now)
-
-class Profile(Base):
-    __tablename__ = 'profiles'
-    id            = Column(Integer, primary_key=True, autoincrement=True)
-    user_id       = Column(Integer, ForeignKey('users.id'), nullable=False)
-    age           = Column(Integer)
-    gender        = Column(String(20))
-    no_dependents = Column(Integer)
-    income        = Column(BigInteger)
-    invest_amount = Column(BigInteger)
-    risk_level    = Column(String(20))
-    horizon       = Column(String(30))
-    updated_at    = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-
-class Recommendation(Base):
-    __tablename__ = 'recommendations'
-    id           = Column(Integer, primary_key=True, autoincrement=True)
-    user_id      = Column(Integer, ForeignKey('users.id'), nullable=False)
-    created_at   = Column(DateTime, default=datetime.now)
-    risk_level   = Column(String(20))
-    plan_json    = Column(Text)
-    returns_json = Column(Text)
-
-# ── HELPER FUNCTIONS ────────────────────────────────────────────
-def get_session():
-    return SessionLocal()
+# ── TABLE CREATION ────────────────────────────────────────────────────────────
 
 def init_db():
-    # Creates all tables. Safe to call many times — won't overwrite data.
-    Base.metadata.create_all(bind=ENGINE)
-    print("Database tables ready.")
+    """Create all tables if they do not already exist."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # ── users ─────────────────────────────────────────────────────────────────
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id         INT AUTO_INCREMENT PRIMARY KEY,
+            name       VARCHAR(100)        NOT NULL,
+            email      VARCHAR(150) UNIQUE NOT NULL,
+            phone      VARCHAR(20),
+            username   VARCHAR(50)  UNIQUE NOT NULL,
+            password   VARCHAR(255)        NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # ── profiles ──────────────────────────────────────────────────────────────
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS profiles (
+            id               INT AUTO_INCREMENT PRIMARY KEY,
+            user_id          INT          NOT NULL,
+            age              INT,
+            gender           VARCHAR(10),
+            no_dependents    INT          DEFAULT 0,
+            income           BIGINT,
+            invest_amount    BIGINT,
+            risk_level       VARCHAR(20),
+            horizon          VARCHAR(20),
+            preferred_assets TEXT,
+            updated_at       DATETIME     DEFAULT CURRENT_TIMESTAMP
+                                          ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
+
+    # ── recommendations ───────────────────────────────────────────────────────
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS recommendations (
+            id             INT AUTO_INCREMENT PRIMARY KEY,
+            user_id        INT          NOT NULL,
+            risk_level     VARCHAR(20),
+            plan_json      LONGTEXT,
+            blended_return FLOAT,
+            total_invested BIGINT,
+            created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
+
+    # ── history (view of recommendations — kept as separate table for fast reads)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS history (
+            id             INT AUTO_INCREMENT PRIMARY KEY,
+            user_id        INT          NOT NULL,
+            risk_level     VARCHAR(20),
+            plan_json      LONGTEXT,
+            blended_return FLOAT,
+            total_invested BIGINT,
+            saved_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
+
+    # ── assets ────────────────────────────────────────────────────────────────
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS assets (
+            id            INT AUTO_INCREMENT PRIMARY KEY,
+            asset_type    VARCHAR(50),
+            asset_name    VARCHAR(150),
+            annual_return FLOAT,
+            volatility    FLOAT,
+            sharpe_ratio  FLOAT,
+            beta          FLOAT,
+            rsi           FLOAT,
+            ma_20         FLOAT,
+            ma_50         FLOAT,
+            created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.commit()
+    cursor.close()
+    conn.close()
